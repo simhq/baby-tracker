@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -923,12 +923,23 @@
       let state = loadState();
 
       function mergeStateFromRemote(remoteData) {
-        if (!remoteData) return;
-        const feedArr = Array.isArray(remoteData.feeding) ? remoteData.feeding : [];
-        const sleepArr = Array.isArray(remoteData.sleeping) ? remoteData.sleeping : [];
         const cutoff = startOfTodayMinusDays(2).getTime();
 
-        const merged = {
+        if (!remoteData) {
+          // Firebase is empty — seed it with local data so the other parent sees everything
+          if (state.feeding.length > 0 || state.sleeping.length > 0) {
+            if (firebaseAvailable && dbRef) {
+              dbRef.set({ feeding: state.feeding, sleeping: state.sleeping });
+            }
+          }
+          return;
+        }
+
+        const feedArr = Array.isArray(remoteData.feeding) ? remoteData.feeding : [];
+        const sleepArr = Array.isArray(remoteData.sleeping) ? remoteData.sleeping : [];
+
+        // Remote data is authoritative — replace local state entirely
+        state = {
           feeding: feedArr
             .map(normalizeFeedingEvent)
             .filter(e => new Date(getTimestamp(e)).getTime() >= cutoff)
@@ -938,23 +949,8 @@
             .filter(e => new Date(getTimestamp(e)).getTime() >= cutoff)
             .sort((a, b) => new Date(getTimestamp(b)).getTime() - new Date(getTimestamp(a)).getTime()),
         };
-
-        // Merge remote data with local data (take newest from each source)
-        state = {
-          feeding: mergeEventArrays(state.feeding, merged.feeding, getTimestamp),
-          sleeping: mergeEventArrays(state.sleeping, merged.sleeping, getTimestamp),
-        };
         saveToLocal();
         render();
-      }
-
-      function mergeEventArrays(localArr, remoteArr, tsGetter) {
-        const map = new Map();
-        for (const e of localArr) map.set(tsGetter(e) || e.timestamp, e);
-        for (const e of remoteArr) map.set(tsGetter(e) || e.timestamp, e);
-        return Array.from(map.values())
-          .filter(Boolean)
-          .sort((a, b) => new Date(tsGetter(b)).getTime() - new Date(tsGetter(a)).getTime());
       }
 
       // Listen for real-time changes from Firebase (only if available)
