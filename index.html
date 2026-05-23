@@ -815,7 +815,7 @@
       let dbRef = null;
       let connectedRef = null;
       let isConnected = false;
-      let skipNextFirebaseEvent = false;
+      let localVersion = 0;
 
       try {
         if (typeof firebase !== "undefined") {
@@ -924,14 +924,16 @@
       let state = loadState();
 
       function mergeStateFromRemote(remoteData) {
+        // Ignore own writes via version
+        if (remoteData && typeof remoteData._version === "number" && remoteData._version <= localVersion) return;
+
         const cutoff = startOfTodayMinusDays(2).getTime();
 
         if (!remoteData) {
           // Firebase is empty — seed it with local data so the other parent sees everything
           if (state.feeding.length > 0 || state.sleeping.length > 0) {
             if (firebaseAvailable && dbRef) {
-              skipNextFirebaseEvent = true;
-              dbRef.set({ feeding: state.feeding, sleeping: state.sleeping });
+              pushToFirebase();
             }
           }
           return;
@@ -958,10 +960,6 @@
       // Listen for real-time changes from Firebase (only if available)
       if (firebaseAvailable && dbRef) {
         dbRef.on("value", (snapshot) => {
-          if (skipNextFirebaseEvent) {
-            skipNextFirebaseEvent = false;
-            return;
-          }
           mergeStateFromRemote(snapshot.val());
         });
       }
@@ -1079,6 +1077,12 @@
         } catch { /* storage full, ignore */ }
       }
 
+      function pushToFirebase() {
+        if (!firebaseAvailable || !dbRef) return;
+        localVersion++;
+        dbRef.set({ feeding: state.feeding, sleeping: state.sleeping, _version: localVersion });
+      }
+
       function cleanAndSave() {
         const cutoff = startOfTodayMinusDays(2).getTime();
 
@@ -1095,8 +1099,7 @@
         saveToLocal();
         // Push to Firebase if available
         if (firebaseAvailable && dbRef) {
-          skipNextFirebaseEvent = true;
-          dbRef.set({ feeding: state.feeding, sleeping: state.sleeping });
+          pushToFirebase();
         }
       }
 
