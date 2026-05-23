@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -815,6 +815,7 @@
       let dbRef = null;
       let connectedRef = null;
       let isConnected = false;
+      let skipNextFirebaseEvent = false;
 
       try {
         if (typeof firebase !== "undefined") {
@@ -929,6 +930,7 @@
           // Firebase is empty — seed it with local data so the other parent sees everything
           if (state.feeding.length > 0 || state.sleeping.length > 0) {
             if (firebaseAvailable && dbRef) {
+              skipNextFirebaseEvent = true;
               dbRef.set({ feeding: state.feeding, sleeping: state.sleeping });
             }
           }
@@ -956,6 +958,10 @@
       // Listen for real-time changes from Firebase (only if available)
       if (firebaseAvailable && dbRef) {
         dbRef.on("value", (snapshot) => {
+          if (skipNextFirebaseEvent) {
+            skipNextFirebaseEvent = false;
+            return;
+          }
           mergeStateFromRemote(snapshot.val());
         });
       }
@@ -1089,6 +1095,7 @@
         saveToLocal();
         // Push to Firebase if available
         if (firebaseAvailable && dbRef) {
+          skipNextFirebaseEvent = true;
           dbRef.set({ feeding: state.feeding, sleeping: state.sleeping });
         }
       }
