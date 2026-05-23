@@ -102,6 +102,34 @@
         gap: 10px;
       }
 
+      .connection-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 52px;
+        padding: 0 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 253, 248, 0.74);
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 600;
+      }
+      .connection-status .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #bbb;
+        transition: background 0.3s;
+      }
+      .connection-status .dot.connected {
+        background: #22c55e;
+      }
+      .connection-status .dot.disconnected {
+        background: #ef4444;
+      }
+
       .current-date {
         display: grid;
         min-height: 52px;
@@ -664,6 +692,9 @@
         }
       }
     </style>
+    <!-- Firebase Realtime Database -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   </head>
   <body>
     <main class="app-shell">
@@ -773,10 +804,43 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <script>
-      const STORAGE_KEY = "baby-tracker-events";
       const FEEDING_STEP = 30;
       const MIN_FEEDING_AMOUNT = 30;
       const MAX_FEEDING_AMOUNT = 300;
+
+      const STORAGE_KEY = "baby-tracker-events";
+
+      // Firebase setup (offline-safe)
+      let firebaseAvailable = false;
+      let dbRef = null;
+      let connectedRef = null;
+      let isConnected = false;
+
+      try {
+        if (typeof firebase !== "undefined") {
+          const firebaseConfig = {
+            apiKey: "AIzaSyDZA7gHg6ilc7HiW1-jYdnfrJJNVreZ7ww",
+            authDomain: "baby-tracker-f1bcb.firebaseapp.com",
+            databaseURL: "https://baby-tracker-f1bcb-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "baby-tracker-f1bcb",
+            storageBucket: "baby-tracker-f1bcb.firebasestorage.app",
+            messagingSenderId: "494193142447",
+            appId: "1:494193142447:web:48cfa28c5169b9b034425a"
+          };
+          firebase.initializeApp(firebaseConfig);
+          dbRef = firebase.database().ref("/baby-tracker");
+          connectedRef = firebase.database().ref(".info/connected");
+          firebaseAvailable = true;
+
+          connectedRef.on("value", (snap) => {
+            isConnected = snap.val() === true;
+            updateConnectionStatus();
+          });
+        }
+      } catch (e) {
+        console.warn("Firebase unavailable, using local storage", e);
+        firebaseAvailable = false;
+      }
 
       const copy = {
         en: {
@@ -851,14 +915,60 @@
         },
       };
 
-      const state = loadState();
       let language = "en";
       let feedingAmount = FEEDING_STEP;
       let lastCleanupDay = dayKey(new Date());
 
+      // State loaded from localStorage; Firebase syncs in background
+      let state = loadState();
+
+      function mergeStateFromRemote(remoteData) {
+        if (!remoteData) return;
+        const feedArr = Array.isArray(remoteData.feeding) ? remoteData.feeding : [];
+        const sleepArr = Array.isArray(remoteData.sleeping) ? remoteData.sleeping : [];
+        const cutoff = startOfTodayMinusDays(2).getTime();
+
+        const merged = {
+          feeding: feedArr
+            .map(normalizeFeedingEvent)
+            .filter(e => new Date(getTimestamp(e)).getTime() >= cutoff)
+            .sort((a, b) => new Date(getTimestamp(b)).getTime() - new Date(getTimestamp(a)).getTime()),
+          sleeping: sleepArr
+            .map(normalizeSleepEvent)
+            .filter(e => new Date(getTimestamp(e)).getTime() >= cutoff)
+            .sort((a, b) => new Date(getTimestamp(b)).getTime() - new Date(getTimestamp(a)).getTime()),
+        };
+
+        // Merge remote data with local data (take newest from each source)
+        state = {
+          feeding: mergeEventArrays(state.feeding, merged.feeding, getTimestamp),
+          sleeping: mergeEventArrays(state.sleeping, merged.sleeping, getTimestamp),
+        };
+        saveToLocal();
+        render();
+      }
+
+      function mergeEventArrays(localArr, remoteArr, tsGetter) {
+        const map = new Map();
+        for (const e of localArr) map.set(tsGetter(e) || e.timestamp, e);
+        for (const e of remoteArr) map.set(tsGetter(e) || e.timestamp, e);
+        return Array.from(map.values())
+          .filter(Boolean)
+          .sort((a, b) => new Date(tsGetter(b)).getTime() - new Date(tsGetter(a)).getTime());
+      }
+
+      // Listen for real-time changes from Firebase (only if available)
+      if (firebaseAvailable && dbRef) {
+        dbRef.on("value", (snapshot) => {
+          mergeStateFromRemote(snapshot.val());
+        });
+      }
+
       const elements = {
         currentDate: document.querySelector("#currentDate"),
         languageToggle: document.querySelector("#languageToggle"),
+        connectionDot: document.querySelector("#connectionDot"),
+        connectionLabel: document.querySelector("#connectionLabel"),
         feedingButton: document.querySelector('[data-action="feeding"]'),
         dailyMilkTotal: document.querySelector("#dailyMilkTotal"),
         dailySleepTotal: document.querySelector("#dailySleepTotal"),
@@ -940,13 +1050,12 @@
         });
       });
 
-      cleanAndSave();
+      // Render immediately from local data (Firebase listener will re-render when synced)
       render();
       setInterval(renderTimers, 1000);
 
       function loadState() {
         const fallback = { feeding: [], sleeping: [] };
-
         try {
           const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
           return {
@@ -962,6 +1071,12 @@
         }
       }
 
+      function saveToLocal() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch { /* storage full, ignore */ }
+      }
+
       function cleanAndSave() {
         const cutoff = startOfTodayMinusDays(2).getTime();
 
@@ -975,7 +1090,11 @@
           cutoff,
           getTimestamp,
         );
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        saveToLocal();
+        // Push to Firebase if available
+        if (firebaseAvailable && dbRef) {
+          dbRef.set({ feeding: state.feeding, sleeping: state.sleeping });
+        }
       }
 
       function cleanCategory(events, cutoff, timestampGetter) {
@@ -1014,6 +1133,17 @@
         renderDailySleepTotal();
         renderSleepState();
         renderTimers();
+      }
+
+      function updateConnectionStatus() {
+        if (!elements.connectionDot || !elements.connectionLabel) return;
+        if (isConnected) {
+          elements.connectionDot.className = "dot connected";
+          elements.connectionLabel.textContent = "Synced";
+        } else {
+          elements.connectionDot.className = "dot disconnected";
+          elements.connectionLabel.textContent = "Offline";
+        }
       }
 
       function applyLanguage() {
