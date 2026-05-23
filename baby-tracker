@@ -1,0 +1,1312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Baby Tracker</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1f2933;
+        --muted: #60707d;
+        --paper: #f6f3ec;
+        --surface: #fffdf8;
+        --surface-strong: #ffffff;
+        --line: #d9d2c3;
+        --feeding: #bf4d2f;
+        --feeding-soft: #f8e3d9;
+        --feeding-dark: #8f341f;
+        --sleeping: #256f78;
+        --sleeping-soft: #dceff1;
+        --sleeping-dark: #164e56;
+        --focus: #111827;
+        --shadow: 0 18px 50px rgba(55, 48, 39, 0.12);
+        --shadow-soft: 0 10px 24px rgba(55, 48, 39, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-height: 100%;
+        background:
+          radial-gradient(circle at top left, rgba(191, 77, 47, 0.12), transparent 34rem),
+          radial-gradient(circle at bottom right, rgba(37, 111, 120, 0.12), transparent 32rem),
+          var(--paper);
+      }
+
+      body {
+        min-height: 100%;
+        margin: 0;
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      button {
+        font: inherit;
+        touch-action: manipulation;
+      }
+
+      .app-shell {
+        width: min(1140px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 36px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 18px 0 18px;
+      }
+
+      .eyebrow,
+      .section-kicker {
+        margin: 0 0 6px;
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        font-size: clamp(2.25rem, 6vw, 4.5rem);
+        line-height: 0.96;
+        letter-spacing: 0;
+      }
+
+      .intro {
+        max-width: 58ch;
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.55;
+      }
+
+      .top-actions {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .current-date {
+        display: grid;
+        min-height: 52px;
+        min-width: 150px;
+        padding: 10px 12px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 253, 248, 0.74);
+        color: var(--muted);
+        font-size: 0.92rem;
+        font-weight: 700;
+        text-align: right;
+      }
+
+      .language-toggle {
+        min-height: 52px;
+        padding: 0 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 253, 248, 0.74);
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.92rem;
+        font-weight: 700;
+      }
+
+      .language-toggle:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 3px;
+      }
+
+      .tracker-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .tracker-card {
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 253, 248, 0.92);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .tracker-card::before {
+        display: block;
+        height: 8px;
+        content: "";
+      }
+
+      .tracker-card--feeding::before {
+        background: var(--feeding);
+      }
+
+      .tracker-card--sleeping::before {
+        background: var(--sleeping);
+      }
+
+      .section-heading {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 22px 22px 12px;
+      }
+
+      .section-icon {
+        display: grid;
+        width: 46px;
+        height: 46px;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 1.15rem;
+        font-weight: 900;
+      }
+
+      .tracker-card--feeding .section-icon,
+      .tracker-card--feeding .log-button {
+        background: var(--feeding);
+      }
+
+      .tracker-card--sleeping .section-icon,
+      .tracker-card--sleeping .log-button {
+        background: var(--sleeping);
+      }
+
+      h2 {
+        font-size: clamp(1.45rem, 3vw, 2.1rem);
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      .log-button {
+        display: block;
+        width: calc(100% - 44px);
+        min-height: 58px;
+        margin: 18px 22px;
+        border: 0;
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        box-shadow: 0 10px 24px rgba(31, 41, 51, 0.13);
+        transition:
+          box-shadow 160ms ease,
+          filter 160ms ease,
+          transform 160ms ease;
+      }
+
+      .log-button:hover {
+        filter: brightness(0.94);
+        box-shadow: 0 12px 28px rgba(31, 41, 51, 0.17);
+        transform: translateY(-1px);
+      }
+
+      .log-button:active {
+        transform: translateY(1px);
+      }
+
+      .log-button:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 3px;
+      }
+
+      .feeding-action {
+        display: grid;
+        grid-template-columns: 52px minmax(0, 1fr) 52px;
+        width: calc(100% - 44px);
+        min-height: 58px;
+        margin: 18px 22px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: var(--feeding);
+        box-shadow: 0 10px 24px rgba(31, 41, 51, 0.13);
+      }
+
+      .feeding-action button {
+        min-width: 0;
+        border: 0;
+        background: transparent;
+        color: #fff;
+        cursor: pointer;
+        font-weight: 900;
+      }
+
+      .feeding-adjust {
+        font-size: 1.35rem;
+      }
+
+      .feeding-add {
+        font-size: 1.08rem;
+        letter-spacing: 0;
+      }
+
+      .feeding-action button:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .feeding-action button:focus-visible {
+        position: relative;
+        z-index: 1;
+        outline: 3px solid var(--focus);
+        outline-offset: -3px;
+      }
+
+      .daily-total {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        margin: 0 22px 14px;
+        padding: 14px 18px;
+        border: 1px solid #ead6cc;
+        border-radius: 8px;
+        background: var(--feeding-soft);
+      }
+
+      .tracker-card--sleeping .daily-total {
+        border-color: #cbe3e6;
+        background: var(--sleeping-soft);
+      }
+
+      .daily-total-label {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .daily-total span {
+        color: var(--feeding-dark);
+        font-size: 0.82rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .tracker-card--sleeping .daily-total span {
+        color: var(--sleeping-dark);
+      }
+
+      .reset-hint {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 500;
+        opacity: 0.7;
+        text-transform: none;
+        letter-spacing: 0;
+        color: var(--feeding-dark);
+      }
+
+      .tracker-card--sleeping .reset-hint {
+        color: var(--sleeping-dark);
+      }
+
+      .tracker-card--sleeping .daily-total span {
+        color: var(--sleeping-dark);
+      }
+
+      .daily-total strong {
+        color: var(--feeding-dark);
+        font-size: 1.7rem;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .tracker-card--sleeping .daily-total strong {
+        color: var(--sleeping-dark);
+      }
+
+      .timer-panel {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        min-height: 78px;
+        margin: 0 22px 20px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface-strong);
+      }
+
+      .timer-panel span {
+        color: var(--muted);
+        font-size: 0.92rem;
+        font-weight: 800;
+      }
+
+      .timer-panel strong {
+        font-size: clamp(2rem, 5vw, 3rem);
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .history-block {
+        padding: 0 22px 24px;
+      }
+
+      .history-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 10px;
+      }
+
+      .history-meta {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .history-header h3 {
+        font-size: 0.95rem;
+        text-transform: uppercase;
+      }
+
+      .history-header span {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .clear-button {
+        min-height: 44px;
+        padding: 0 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        transition:
+          background 160ms ease,
+          color 160ms ease,
+          border-color 160ms ease;
+      }
+
+      .clear-button:hover {
+        border-color: #c77b67;
+        background: #fff4ee;
+        color: var(--feeding-dark);
+      }
+
+      .clear-button:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 3px;
+      }
+
+      .history-list {
+        display: grid;
+        gap: 8px;
+        min-height: 44px;
+        max-height: 360px;
+        margin: 0;
+        padding: 0;
+        overflow: auto;
+        list-style: none;
+      }
+
+      .history-list li {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 14px;
+        min-height: 48px;
+        padding: 11px 12px;
+        border: 1px solid #e7ddcb;
+        border-radius: 8px;
+        background: var(--surface-strong);
+        font-size: 0.98rem;
+      }
+
+      .history-list li::before {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: currentColor;
+        content: "";
+      }
+
+      .tracker-card--feeding .history-list li::before {
+        color: var(--feeding-dark);
+      }
+
+      .tracker-card--sleeping .history-list li::before {
+        color: var(--sleeping-dark);
+      }
+
+      .empty-state {
+        min-height: 44px;
+        padding: 13px 0;
+        justify-content: flex-start;
+        color: var(--muted);
+      }
+
+      .history-list .empty-state::before {
+        display: none;
+      }
+
+      .sleep-status {
+        min-width: 72px;
+        color: var(--sleeping-dark);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+      }
+
+      .sleep-status--awake {
+        color: var(--feeding-dark);
+      }
+
+      .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 10;
+        max-width: min(360px, calc(100vw - 36px));
+        padding: 13px 15px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #1f2933;
+        color: #fff;
+        box-shadow: 0 18px 44px rgba(31, 41, 51, 0.25);
+        font-weight: 800;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(10px);
+        transition:
+          opacity 180ms ease,
+          transform 180ms ease;
+      }
+
+      .toast.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      @media (max-width: 860px) {
+        .tracker-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .app-shell {
+          width: calc(100% - 16px);
+          max-width: 520px;
+          padding: 8px 0 12px;
+        }
+
+        .topbar {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 8px;
+          padding: 6px 0 10px;
+        }
+
+        h1 {
+          font-size: clamp(2rem, 12vw, 3rem);
+        }
+
+        .top-actions {
+          width: 100%;
+          flex-direction: row;
+          gap: 6px;
+          justify-content: space-between;
+        }
+
+        .current-date {
+          min-height: 38px;
+          min-width: 112px;
+          padding: 8px 9px;
+          font-size: 0.78rem;
+          text-align: right;
+        }
+
+        .language-toggle {
+          min-height: 38px;
+          padding: 0 9px;
+          font-size: 0.78rem;
+        }
+
+        .tracker-grid {
+          gap: 10px;
+        }
+
+        .tracker-card::before {
+          height: 5px;
+        }
+
+        .section-heading {
+          gap: 10px;
+          padding-top: 12px;
+          padding-bottom: 8px;
+        }
+
+        .section-icon {
+          width: 34px;
+          height: 34px;
+          font-size: 0.9rem;
+        }
+
+        h2 {
+          font-size: 1.25rem;
+        }
+
+        .section-heading,
+        .history-block {
+          padding-right: 12px;
+          padding-left: 12px;
+        }
+
+        .log-button,
+        .feeding-action {
+          width: calc(100% - 24px);
+          min-height: 48px;
+          margin: 10px 12px;
+        }
+
+        .feeding-action {
+          grid-template-columns: 46px minmax(0, 1fr) 46px;
+        }
+
+        .daily-total {
+          margin: 0 12px 8px;
+          padding: 10px 12px;
+        }
+
+        .daily-total strong {
+          font-size: 1.35rem;
+        }
+
+        .timer-panel {
+          display: block;
+          min-height: 0;
+          margin: 0 12px 10px;
+          padding: 10px 12px;
+        }
+
+        .timer-panel strong {
+          display: block;
+          margin-top: 4px;
+          font-size: clamp(1.55rem, 10vw, 2.2rem);
+        }
+
+        .history-block {
+          padding-bottom: 12px;
+        }
+
+        .history-list {
+          max-height: 168px;
+          gap: 6px;
+        }
+
+        .history-list li {
+          min-height: 38px;
+          padding: 8px 10px;
+          flex-wrap: wrap;
+          gap: 8px 12px;
+          overflow-wrap: anywhere;
+        }
+
+        .history-header {
+          align-items: center;
+          flex-direction: row;
+          margin-bottom: 6px;
+        }
+
+        .history-meta {
+          width: auto;
+          flex-wrap: nowrap;
+          gap: 6px;
+        }
+
+        .clear-button {
+          min-height: 34px;
+          padding: 0 9px;
+        }
+
+        .sleep-status {
+          min-width: 64px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1 data-i18n="appTitle">Baby Tracker</h1>
+        </div>
+        <div class="top-actions">
+          <button class="language-toggle" type="button" id="languageToggle" aria-label="Switch language">
+            中文
+          </button>
+          <div class="current-date" id="currentDate"></div>
+        </div>
+      </header>
+
+      <section class="tracker-grid" aria-label="Baby care trackers">
+        <article class="tracker-card tracker-card--feeding" data-section="feeding">
+          <div class="section-heading">
+            <span class="section-icon" aria-hidden="true">F</span>
+            <div>
+              <p class="section-kicker" data-i18n="feeding">Feeding</p>
+              <h2 data-i18n="milkMeals">Milk and meals</h2>
+            </div>
+          </div>
+
+          <div class="feeding-action" aria-label="Feeding amount control">
+            <button class="feeding-adjust" type="button" data-feeding-adjust="-30" aria-label="Decrease feeding amount">
+              -
+            </button>
+            <button class="feeding-add" type="button" data-action="feeding" aria-label="Add feeding amount">
+              +30 ml
+            </button>
+            <button class="feeding-adjust" type="button" data-feeding-adjust="30" aria-label="Increase feeding amount">
+              +
+            </button>
+          </div>
+
+          <div class="daily-total" aria-live="polite">
+            <div class="daily-total-label">
+              <span data-i18n="todayTotal">Today total</span>
+              <small class="reset-hint">Resets at 12:00 AM</small>
+            </div>
+            <strong id="dailyMilkTotal">0 ml</strong>
+          </div>
+
+          <div class="timer-panel" aria-live="polite">
+            <span data-i18n="timeSinceFeeding">Time since last feeding</span>
+            <strong id="feedingTimer">--:--:--</strong>
+          </div>
+
+          <div class="history-block">
+            <div class="history-header">
+              <h3 data-i18n="last3Days">Last 3 days</h3>
+              <div class="history-meta">
+                <span id="feedingCount">0 logs</span>
+                <button class="clear-button" type="button" data-clear="feeding" aria-label="Clear feeding logs" data-i18n="clear">
+                  Clear
+                </button>
+              </div>
+            </div>
+            <ul class="history-list" id="feedingHistory"></ul>
+          </div>
+        </article>
+
+        <article class="tracker-card tracker-card--sleeping" data-section="sleeping">
+          <div class="section-heading">
+            <span class="section-icon" aria-hidden="true">S</span>
+            <div>
+              <p class="section-kicker" data-i18n="sleeping">Sleeping</p>
+              <h2 data-i18n="restSessions">Rest sessions</h2>
+            </div>
+          </div>
+
+          <button class="log-button" type="button" data-action="sleeping">
+            Start sleep
+          </button>
+
+          <div class="daily-total" aria-live="polite">
+            <div class="daily-total-label">
+              <span data-i18n="todayTotal">Today total</span>
+              <small class="reset-hint">Resets at 8:00 PM</small>
+            </div>
+            <strong id="dailySleepTotal">0h 00m</strong>
+          </div>
+
+          <div class="timer-panel" aria-live="polite">
+            <span id="sleepingTimerLabel">Time since last sleep</span>
+            <strong id="sleepingTimer">--:--:--</strong>
+          </div>
+
+          <div class="history-block">
+            <div class="history-header">
+              <h3 data-i18n="last3Days">Last 3 days</h3>
+              <div class="history-meta">
+                <span id="sleepingCount">0 logs</span>
+                <button class="clear-button" type="button" data-clear="sleeping" aria-label="Clear sleep logs" data-i18n="clear">
+                  Clear
+                </button>
+              </div>
+            </div>
+            <ul class="history-list" id="sleepingHistory"></ul>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const STORAGE_KEY = "baby-tracker-events";
+      const FEEDING_STEP = 30;
+      const MIN_FEEDING_AMOUNT = 30;
+      const MAX_FEEDING_AMOUNT = 300;
+
+      const copy = {
+        en: {
+          appTitle: "Baby Tracker",
+          todayMilk: "Today's milk",
+          lastFeedingLog: "Last feeding log",
+          lastSleepLog: "Last sleep log",
+          sleepStatus: "Sleep status",
+          feeding: "Feeding",
+          milkMeals: "Milk and meals",
+          todayTotal: "Today total",
+          timeSinceFeeding: "Time since last feeding",
+          last3Days: "Last 3 days",
+          clear: "Clear",
+          sleeping: "Sleeping",
+          restSessions: "Rest sessions",
+          startSleep: "Start sleep",
+          markAwake: "Mark awake",
+          timeSinceAwake: "Time since marked awake",
+          timeSinceSleep: "Time since sleep started",
+          asleep: "Asleep",
+          awake: "Awake",
+          noLogs: "No logs yet",
+          noLogsPeriod: "No logs yet.",
+          log: "log",
+          logs: "logs",
+          clearEmpty: "There are no logs to clear.",
+          clearConfirm: (label) => `Clear all ${label} logs from the last 3 days?`,
+          clearDone: (label) => `${capitalize(label)} logs cleared.`,
+          sleepAdded: "Sleep log added.",
+          feedingAdded: (amount) => `${amount} ml added.`,
+          feedingLabel: "feeding",
+          sleepLabel: "sleep",
+          languageButton: "中文",
+          switchLanguage: "Switch language",
+          unknownTime: "Unknown time",
+        },
+        zh: {
+          appTitle: "宝宝记录",
+          todayMilk: "今日奶量",
+          lastFeedingLog: "上次喂奶",
+          lastSleepLog: "上次睡眠",
+          sleepStatus: "睡眠状态",
+          feeding: "喂奶",
+          milkMeals: "奶量记录",
+          todayTotal: "今日总量",
+          timeSinceFeeding: "距上次喂奶",
+          last3Days: "最近3天",
+          clear: "清除",
+          sleeping: "睡眠",
+          restSessions: "休息记录",
+          startSleep: "开始睡觉",
+          markAwake: "已醒来",
+          timeSinceAwake: "距醒来",
+          timeSinceSleep: "距入睡",
+          asleep: "睡着",
+          awake: "醒着",
+          noLogs: "暂无记录",
+          noLogsPeriod: "暂无记录。",
+          log: "条记录",
+          logs: "条记录",
+          clearEmpty: "没有可清除的记录。",
+          clearConfirm: (label) => `清除最近3天的所有${label}记录？`,
+          clearDone: (label) => `${label}记录已清除。`,
+          sleepAdded: "睡眠记录已添加。",
+          feedingAdded: (amount) => `已添加 ${amount} ml。`,
+          feedingLabel: "喂奶",
+          sleepLabel: "睡眠",
+          languageButton: "English",
+          switchLanguage: "切换语言",
+          unknownTime: "未知时间",
+        },
+      };
+
+      const state = loadState();
+      let language = "en";
+      let feedingAmount = FEEDING_STEP;
+      let lastCleanupDay = dayKey(new Date());
+
+      const elements = {
+        currentDate: document.querySelector("#currentDate"),
+        languageToggle: document.querySelector("#languageToggle"),
+        feedingButton: document.querySelector('[data-action="feeding"]'),
+        dailyMilkTotal: document.querySelector("#dailyMilkTotal"),
+        dailySleepTotal: document.querySelector("#dailySleepTotal"),
+        feedingTimer: document.querySelector("#feedingTimer"),
+        sleepingTimer: document.querySelector("#sleepingTimer"),
+        sleepingTimerLabel: document.querySelector("#sleepingTimerLabel"),
+        feedingHistory: document.querySelector("#feedingHistory"),
+        sleepingHistory: document.querySelector("#sleepingHistory"),
+        feedingCount: document.querySelector("#feedingCount"),
+        sleepingCount: document.querySelector("#sleepingCount"),
+        sleepingButton: document.querySelector('[data-action="sleeping"]'),
+        toast: document.querySelector("#toast"),
+      };
+
+      let toastTimeout;
+
+      elements.languageToggle.addEventListener("click", () => {
+        language = language === "en" ? "zh" : "en";
+        render();
+      });
+
+      document.querySelectorAll("[data-feeding-adjust]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const delta = Number(button.dataset.feedingAdjust);
+          feedingAmount = clamp(
+            feedingAmount + delta,
+            MIN_FEEDING_AMOUNT,
+            MAX_FEEDING_AMOUNT,
+          );
+          renderFeedingButton();
+        });
+      });
+
+      document.querySelectorAll("[data-action]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const category = button.dataset.action;
+
+          if (category === "sleeping") {
+            state.sleeping.unshift({
+              type: nextSleepType(),
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            state[category].unshift({
+              amount: feedingAmount,
+              timestamp: new Date().toISOString(),
+            });
+          }
+
+          cleanAndSave();
+          render();
+          showToast(
+            category === "sleeping"
+              ? t("sleepAdded")
+              : t("feedingAdded")(feedingAmount),
+          );
+        });
+      });
+
+      document.querySelectorAll("[data-clear]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const category = button.dataset.clear;
+
+          if (state[category].length === 0) {
+            showToast(t("clearEmpty"));
+            return;
+          }
+
+          const label = category === "feeding" ? t("feedingLabel") : t("sleepLabel");
+
+          if (!window.confirm(t("clearConfirm")(label))) {
+            return;
+          }
+
+          state[category] = [];
+          cleanAndSave();
+          render();
+          showToast(t("clearDone")(label));
+        });
+      });
+
+      cleanAndSave();
+      render();
+      setInterval(renderTimers, 1000);
+
+      function loadState() {
+        const fallback = { feeding: [], sleeping: [] };
+
+        try {
+          const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+          return {
+            feeding: Array.isArray(parsed?.feeding)
+              ? parsed.feeding.map(normalizeFeedingEvent)
+              : [],
+            sleeping: Array.isArray(parsed?.sleeping)
+              ? parsed.sleeping.map(normalizeSleepEvent)
+              : [],
+          };
+        } catch {
+          return fallback;
+        }
+      }
+
+      function cleanAndSave() {
+        const cutoff = startOfTodayMinusDays(2).getTime();
+
+        state.feeding = cleanCategory(
+          state.feeding.map(normalizeFeedingEvent),
+          cutoff,
+          getTimestamp,
+        );
+        state.sleeping = cleanCategory(
+          state.sleeping.map(normalizeSleepEvent),
+          cutoff,
+          getTimestamp,
+        );
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      function cleanCategory(events, cutoff, timestampGetter) {
+        return events
+          .filter((event) => {
+            const time = new Date(timestampGetter(event)).getTime();
+            return Number.isFinite(time) && time >= cutoff;
+          })
+          .sort(
+            (a, b) =>
+              new Date(timestampGetter(b)).getTime() -
+              new Date(timestampGetter(a)).getTime(),
+          );
+      }
+
+      function startOfTodayMinusDays(days) {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() - days);
+        return date;
+      }
+
+      function render() {
+        applyLanguage();
+        elements.currentDate.textContent = new Intl.DateTimeFormat(undefined, {
+          weekday: "short",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        }).format(new Date());
+
+        renderHistory("feeding");
+        renderHistory("sleeping");
+        renderFeedingButton();
+        renderDailyMilkTotal();
+        renderDailySleepTotal();
+        renderSleepState();
+        renderTimers();
+      }
+
+      function applyLanguage() {
+        document.documentElement.lang = language === "zh" ? "zh-Hans" : "en";
+        document.querySelectorAll("[data-i18n]").forEach((element) => {
+          const value = t(element.dataset.i18n);
+          if (typeof value === "string") {
+            element.textContent = value;
+          }
+        });
+        elements.languageToggle.textContent = t("languageButton");
+        elements.languageToggle.setAttribute("aria-label", t("switchLanguage"));
+      }
+
+      function renderHistory(category) {
+        const list = elements[`${category}History`];
+        const count = elements[`${category}Count`];
+        const events = state[category];
+
+        list.innerHTML = "";
+        count.textContent = `${events.length} ${events.length === 1 ? t("log") : t("logs")}`;
+
+        if (events.length === 0) {
+          const empty = document.createElement("li");
+          empty.className = "empty-state";
+          empty.textContent = t("noLogsPeriod");
+          list.append(empty);
+          return;
+        }
+
+        events.forEach((event) => {
+          const item = document.createElement("li");
+          const dateTime = document.createElement("span");
+
+          if (category === "sleeping") {
+            const label = document.createElement("strong");
+            label.className = `sleep-status sleep-status--${event.type}`;
+            label.textContent = event.type === "sleep" ? t("asleep") : t("awake");
+            dateTime.textContent = formatTimestamp(event.timestamp);
+            item.append(label, dateTime);
+          } else {
+            const amount = document.createElement("strong");
+            amount.className = "feeding-amount";
+            amount.textContent = `${getFeedingAmount(event)} ml`;
+            dateTime.textContent = formatTimestamp(event.timestamp);
+            item.append(amount, dateTime);
+          }
+
+          list.append(item);
+        });
+      }
+
+      function renderTimers() {
+        pruneIfDayChanged();
+        elements.feedingTimer.textContent = elapsedSince(
+          getTimestamp(state.feeding[0]),
+        );
+        elements.sleepingTimer.textContent = elapsedSince(
+          getTimestamp(state.sleeping[0]),
+        );
+        renderDailySleepTotal();
+      }
+
+      function pruneIfDayChanged() {
+        const today = dayKey(new Date());
+
+        if (today === lastCleanupDay) {
+          return;
+        }
+
+        lastCleanupDay = today;
+        cleanAndSave();
+        renderHistory("feeding");
+        renderHistory("sleeping");
+        renderDailyMilkTotal();
+        renderDailySleepTotal();
+        renderSleepState();
+      }
+
+      function dayKey(date) {
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+      }
+
+      function renderSleepState() {
+        const latestType = state.sleeping[0]?.type;
+        const nextType = nextSleepType();
+
+        elements.sleepingButton.textContent =
+          nextType === "sleep" ? t("startSleep") : t("markAwake");
+        elements.sleepingButton.setAttribute(
+          "aria-label",
+          nextType === "sleep" ? "Add sleep start log for now" : "Add awake log for now",
+        );
+        elements.sleepingTimerLabel.textContent =
+          latestType === "awake"
+            ? t("timeSinceAwake")
+            : t("timeSinceSleep");
+      }
+
+      function renderFeedingButton() {
+        elements.feedingButton.textContent = `+${feedingAmount} ml`;
+        elements.feedingButton.setAttribute(
+          "aria-label",
+          `${t("feeding")} +${feedingAmount} ml`,
+        );
+      }
+
+      function renderDailyMilkTotal() {
+        elements.dailyMilkTotal.textContent = `${todaysMilkTotal()} ml`;
+      }
+
+      function renderDailySleepTotal() {
+        elements.dailySleepTotal.textContent = formatSleepDuration(todaysSleepTotalMs());
+      }
+
+      function todaysMilkTotal() {
+        const today = dayKey(new Date());
+        return state.feeding.reduce((total, event) => {
+          const timestamp = getTimestamp(event);
+          if (!timestamp || dayKey(new Date(timestamp)) !== today) {
+            return total;
+          }
+          return total + getFeedingAmount(event);
+        }, 0);
+      }
+
+      // Returns the start of the current "sleep day", which resets at 8pm local time.
+      // Before 8pm → use 8pm yesterday; at or after 8pm → use 8pm today.
+      function getSleepDayStart() {
+        const now = new Date();
+        const cutoff = new Date(now);
+        cutoff.setHours(20, 0, 0, 0); // 8:00 PM today
+        if (now < cutoff) {
+          cutoff.setDate(cutoff.getDate() - 1); // roll back to 8pm yesterday
+        }
+        return cutoff;
+      }
+
+      function todaysSleepTotalMs() {
+        const now = new Date();
+        const todayStart = getSleepDayStart();
+        const todayStartMs = todayStart.getTime();
+        const nowMs = now.getTime();
+        const events = state.sleeping
+          .map(normalizeSleepEvent)
+          .map((event) => ({
+            type: event.type,
+            time: new Date(event.timestamp).getTime(),
+          }))
+          .filter((event) => Number.isFinite(event.time))
+          .sort((a, b) => a.time - b.time);
+
+        let sleepStart = null;
+        let total = 0;
+
+        events.forEach((event) => {
+          if (event.time < todayStartMs) {
+            sleepStart = event.type === "sleep" ? todayStartMs : null;
+            return;
+          }
+
+          if (event.time > nowMs) {
+            return;
+          }
+
+          if (event.type === "sleep") {
+            sleepStart = Math.max(event.time, todayStartMs);
+            return;
+          }
+
+          if (sleepStart !== null) {
+            total += Math.max(0, event.time - sleepStart);
+            sleepStart = null;
+          }
+        });
+
+        if (sleepStart !== null) {
+          total += Math.max(0, nowMs - sleepStart);
+        }
+
+        return total;
+      }
+
+      function formatSleepDuration(milliseconds) {
+        const totalMinutes = Math.floor(Math.max(0, milliseconds) / 60000);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        return `${hours}h ${pad(minutes)}m`;
+      }
+
+      function nextSleepType() {
+        return state.sleeping[0]?.type === "sleep" ? "awake" : "sleep";
+      }
+
+      function normalizeFeedingEvent(event) {
+        if (typeof event === "string") {
+          return { amount: FEEDING_STEP, timestamp: event };
+        }
+
+        return {
+          amount: getFeedingAmount(event),
+          timestamp: event?.timestamp || event?.time || event?.at || "",
+        };
+      }
+
+      function normalizeSleepEvent(event) {
+        if (typeof event === "string") {
+          return { type: "sleep", timestamp: event };
+        }
+
+        return {
+          type: event?.type === "awake" ? "awake" : "sleep",
+          timestamp: event?.timestamp || event?.time || event?.at || "",
+        };
+      }
+
+      function getTimestamp(event) {
+        return typeof event === "string" ? event : event?.timestamp;
+      }
+
+      function getFeedingAmount(event) {
+        const amount = Number(event?.amount);
+        return Number.isFinite(amount) && amount > 0 ? amount : FEEDING_STEP;
+      }
+
+      function elapsedSince(timestamp) {
+        if (!timestamp) {
+          return "--:--:--";
+        }
+
+        const then = new Date(timestamp).getTime();
+
+        if (!Number.isFinite(then)) {
+          return "--:--:--";
+        }
+
+        const elapsedSeconds = Math.max(
+          0,
+          Math.floor((Date.now() - then) / 1000),
+        );
+        const hours = Math.floor(elapsedSeconds / 3600);
+        const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+        const seconds = elapsedSeconds % 60;
+
+        return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+      }
+
+      function formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+
+        if (!Number.isFinite(date.getTime())) {
+          return t("unknownTime");
+        }
+
+        const month = new Intl.DateTimeFormat("en", { month: "short" }).format(date);
+        const day = pad(date.getDate());
+        const hours = pad(to12Hour(date.getHours()));
+        const minutes = pad(date.getMinutes());
+        const meridiem = date.getHours() >= 12 ? "PM" : "AM";
+
+        return `${hours}:${minutes} ${meridiem} ${month}-${day}`;
+      }
+
+      function pad(value) {
+        return String(value).padStart(2, "0");
+      }
+
+      function to12Hour(hours) {
+        const normalized = hours % 12;
+        return normalized === 0 ? 12 : normalized;
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+      }
+
+      function t(key) {
+        return copy[language][key] ?? copy.en[key] ?? key;
+      }
+
+      function showToast(message) {
+        window.clearTimeout(toastTimeout);
+        elements.toast.textContent = message;
+        elements.toast.classList.add("is-visible");
+        toastTimeout = window.setTimeout(() => {
+          elements.toast.classList.remove("is-visible");
+        }, 2600);
+      }
+
+      function capitalize(value) {
+        return value.charAt(0).toUpperCase() + value.slice(1);
+      }
+    </script>
+  </body>
+</html>
