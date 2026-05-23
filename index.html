@@ -815,7 +815,7 @@
       let dbRef = null;
       let connectedRef = null;
       let isConnected = false;
-      let localVersion = 0;
+      const DEVICE_ID = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 
       try {
         if (typeof firebase !== "undefined") {
@@ -924,8 +924,8 @@
       let state = loadState();
 
       function mergeStateFromRemote(remoteData) {
-        // Ignore own writes via version
-        if (remoteData && typeof remoteData._version === "number" && remoteData._version <= localVersion) return;
+        // Ignore own writes only — compare by device ID so other devices always get through
+        if (remoteData && remoteData._deviceId === DEVICE_ID) return;
 
         const cutoff = startOfTodayMinusDays(2).getTime();
 
@@ -1079,8 +1079,7 @@
 
       function pushToFirebase() {
         if (!firebaseAvailable || !dbRef) return;
-        localVersion++;
-        dbRef.set({ feeding: state.feeding, sleeping: state.sleeping, _version: localVersion });
+        dbRef.set({ feeding: state.feeding, sleeping: state.sleeping, _deviceId: DEVICE_ID, _ts: Date.now() });
       }
 
       function cleanAndSave() {
