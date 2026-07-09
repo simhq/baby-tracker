@@ -58,7 +58,7 @@
 
       .topbar {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 18px;
         padding: 18px 0 18px;
@@ -82,8 +82,8 @@
       }
 
       h1 {
-        font-size: clamp(1.3rem, 3vw, 1.9rem);
-        line-height: 1.1;
+        font-size: clamp(2.25rem, 6vw, 4.5rem);
+        line-height: 0.96;
         letter-spacing: 0;
       }
 
@@ -221,8 +221,8 @@
       }
 
       h2 {
-        font-size: clamp(1.3rem, 3vw, 1.9rem);
-        line-height: 1.1;
+        font-size: clamp(1.45rem, 3vw, 2.1rem);
+        line-height: 1.05;
         letter-spacing: 0;
       }
 
@@ -303,7 +303,7 @@
 
       .daily-total {
         display: flex;
-        align-items: center;
+        align-items: baseline;
         justify-content: space-between;
         gap: 16px;
         margin: 0 22px 14px;
@@ -335,20 +335,6 @@
         color: var(--sleeping-dark);
       }
 
-      .reset-hint {
-        display: block;
-        font-size: 0.68rem;
-        font-weight: 500;
-        opacity: 0.7;
-        text-transform: none;
-        letter-spacing: 0;
-        color: var(--feeding-dark);
-      }
-
-      .tracker-card--sleeping .reset-hint {
-        color: var(--sleeping-dark);
-      }
-
       .tracker-card--sleeping .daily-total span {
         color: var(--sleeping-dark);
       }
@@ -366,7 +352,7 @@
 
       .timer-panel {
         display: flex;
-        align-items: center;
+        align-items: baseline;
         justify-content: space-between;
         gap: 16px;
         min-height: 78px;
@@ -557,7 +543,7 @@
         }
 
         h1 {
-          font-size: clamp(1.15rem, 6vw, 1.6rem);
+          font-size: clamp(2rem, 12vw, 3rem);
         }
 
         .top-actions {
@@ -602,7 +588,7 @@
         }
 
         h2 {
-          font-size: 1.15rem;
+          font-size: 1.25rem;
         }
 
         .section-heading,
@@ -721,21 +707,20 @@
           </div>
 
           <div class="feeding-action" aria-label="Feeding amount control">
-            <button class="feeding-adjust" type="button" data-feeding-adjust="-30" aria-label="Decrease feeding amount">
+            <button class="feeding-adjust" type="button" data-feeding-adjust="-10" aria-label="Decrease feeding amount">
               -
             </button>
             <button class="feeding-add" type="button" data-action="feeding" aria-label="Add feeding amount">
-              +30 ml
+              +10 ml
             </button>
-            <button class="feeding-adjust" type="button" data-feeding-adjust="30" aria-label="Increase feeding amount">
+            <button class="feeding-adjust" type="button" data-feeding-adjust="10" aria-label="Increase feeding amount">
               +
             </button>
           </div>
 
           <div class="daily-total" aria-live="polite">
             <div class="daily-total-label">
-              <span data-i18n="todayTotal">Today total</span>
-              <small class="reset-hint" data-i18n="feedingResetHint">Resets at 12:00 AM</small>
+              <span data-i18n="total">Total</span>
             </div>
             <strong id="dailyMilkTotal">0 ml</strong>
           </div>
@@ -747,7 +732,7 @@
 
           <div class="history-block">
             <div class="history-header">
-              <h3 data-i18n="feedingPeriodLabel">Today</h3>
+              <h3 data-i18n="last3Days">Last 3 days</h3>
               <div class="history-meta">
                 <span id="feedingCount">0 logs</span>
                 <button class="clear-button" type="button" data-clear="feeding" aria-label="Clear feeding logs" data-i18n="clear">
@@ -774,8 +759,7 @@
 
           <div class="daily-total" aria-live="polite">
             <div class="daily-total-label">
-              <span data-i18n="todayTotal">Today total</span>
-              <small class="reset-hint" data-i18n="sleepResetHint">Resets at 8:00 PM</small>
+              <span data-i18n="total">Total</span>
             </div>
             <strong id="dailySleepTotal">0h 00m</strong>
           </div>
@@ -787,7 +771,7 @@
 
           <div class="history-block">
             <div class="history-header">
-              <h3 data-i18n="sleepingPeriodLabel">Since 8 PM</h3>
+              <h3 data-i18n="last3Days">Last 3 days</h3>
               <div class="history-meta">
                 <span id="sleepingCount">0 logs</span>
                 <button class="clear-button" type="button" data-clear="sleeping" aria-label="Clear sleep logs" data-i18n="clear">
@@ -804,8 +788,8 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <script>
-      const FEEDING_STEP = 30;
-      const MIN_FEEDING_AMOUNT = 30;
+      const FEEDING_STEP = 10;
+      const MIN_FEEDING_AMOUNT = 10;
       const MAX_FEEDING_AMOUNT = 300;
 
       const STORAGE_KEY = "baby-tracker-events";
@@ -815,7 +799,7 @@
       let dbRef = null;
       let connectedRef = null;
       let isConnected = false;
-      const DEVICE_ID = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
+      let localVersion = 0;
 
       try {
         if (typeof firebase !== "undefined") {
@@ -845,19 +829,16 @@
 
       const copy = {
         en: {
-          appTitle: "Zhi En Tracker",
+          appTitle: "Baby Tracker",
           todayMilk: "Today's milk",
           lastFeedingLog: "Last feeding log",
           lastSleepLog: "Last sleep log",
           sleepStatus: "Sleep status",
           feeding: "Feeding",
           milkMeals: "Milk and meals",
-          todayTotal: "Today total",
+          total: "Total",
           timeSinceFeeding: "Time since last feeding",
-          feedingPeriodLabel: "Today",
-          sleepingPeriodLabel: "Since 8 PM",
-          feedingResetHint: "Resets at 12:00 AM",
-          sleepResetHint: "Resets at 8:00 PM",
+          last3Days: "Last 3 days",
           clear: "Clear",
           sleeping: "Sleeping",
           restSessions: "Rest sessions",
@@ -872,7 +853,7 @@
           log: "log",
           logs: "logs",
           clearEmpty: "There are no logs to clear.",
-          clearConfirm: (label) => `Clear all ${label} logs?`,
+          clearConfirm: (label) => `Clear all ${label} logs from the last 3 days?`,
           clearDone: (label) => `${capitalize(label)} logs cleared.`,
           sleepAdded: "Sleep log added.",
           feedingAdded: (amount) => `${amount} ml added.`,
@@ -883,19 +864,16 @@
           unknownTime: "Unknown time",
         },
         zh: {
-          appTitle: "知恩记录",
+          appTitle: "宝宝记录",
           todayMilk: "今日奶量",
           lastFeedingLog: "上次喂奶",
           lastSleepLog: "上次睡眠",
           sleepStatus: "睡眠状态",
           feeding: "喂奶",
           milkMeals: "奶量记录",
-          todayTotal: "今日总量",
+          total: "总量",
           timeSinceFeeding: "距上次喂奶",
-          feedingPeriodLabel: "今日",
-          sleepingPeriodLabel: "晚上8时起",
-          feedingResetHint: "每日凌晨12时重置",
-          sleepResetHint: "每日晚上8时重置",
+          last3Days: "最近3天",
           clear: "清除",
           sleeping: "睡眠",
           restSessions: "休息记录",
@@ -910,7 +888,7 @@
           log: "条记录",
           logs: "条记录",
           clearEmpty: "没有可清除的记录。",
-          clearConfirm: (label) => `清除所有${label}记录？`,
+          clearConfirm: (label) => `清除最近3天的所有${label}记录？`,
           clearDone: (label) => `${label}记录已清除。`,
           sleepAdded: "睡眠记录已添加。",
           feedingAdded: (amount) => `已添加 ${amount} ml。`,
@@ -922,8 +900,7 @@
         },
       };
 
-      const LANGUAGE_KEY = "baby-tracker-language";
-      let language = localStorage.getItem(LANGUAGE_KEY) || "en";
+      let language = "en";
       let feedingAmount = FEEDING_STEP;
       let lastCleanupDay = dayKey(new Date());
 
@@ -931,11 +908,10 @@
       let state = loadState();
 
       function mergeStateFromRemote(remoteData) {
-        // Ignore own writes only — compare by device ID so other devices always get through
-        if (remoteData && remoteData._deviceId === DEVICE_ID) return;
+        // Ignore own writes via version
+        if (remoteData && typeof remoteData._version === "number" && remoteData._version <= localVersion) return;
 
-        const feedingCutoff = startOfToday().getTime();
-        const sleepingCutoff = getSleepDayStart().getTime();
+        const cutoff = startOfTodayMinusDays(2).getTime();
 
         if (!remoteData) {
           // Firebase is empty — seed it with local data so the other parent sees everything
@@ -954,11 +930,11 @@
         state = {
           feeding: feedArr
             .map(normalizeFeedingEvent)
-            .filter(e => new Date(getTimestamp(e)).getTime() >= feedingCutoff)
+            .filter(e => new Date(getTimestamp(e)).getTime() >= cutoff)
             .sort((a, b) => new Date(getTimestamp(b)).getTime() - new Date(getTimestamp(a)).getTime()),
           sleeping: sleepArr
             .map(normalizeSleepEvent)
-            .filter(e => new Date(getTimestamp(e)).getTime() >= sleepingCutoff)
+            .filter(e => new Date(getTimestamp(e)).getTime() >= cutoff)
             .sort((a, b) => new Date(getTimestamp(b)).getTime() - new Date(getTimestamp(a)).getTime()),
         };
         saveToLocal();
@@ -995,7 +971,6 @@
 
       elements.languageToggle.addEventListener("click", () => {
         language = language === "en" ? "zh" : "en";
-        try { localStorage.setItem(LANGUAGE_KEY, language); } catch { /* ignore */ }
         render();
       });
 
@@ -1088,21 +1063,21 @@
 
       function pushToFirebase() {
         if (!firebaseAvailable || !dbRef) return;
-        dbRef.set({ feeding: state.feeding, sleeping: state.sleeping, _deviceId: DEVICE_ID, _ts: Date.now() });
+        localVersion++;
+        dbRef.set({ feeding: state.feeding, sleeping: state.sleeping, _version: localVersion });
       }
 
       function cleanAndSave() {
-        const feedingCutoff = startOfToday().getTime();
-        const sleepingCutoff = getSleepDayStart().getTime();
+        const cutoff = startOfTodayMinusDays(2).getTime();
 
         state.feeding = cleanCategory(
           state.feeding.map(normalizeFeedingEvent),
-          feedingCutoff,
+          cutoff,
           getTimestamp,
         );
         state.sleeping = cleanCategory(
           state.sleeping.map(normalizeSleepEvent),
-          sleepingCutoff,
+          cutoff,
           getTimestamp,
         );
         saveToLocal();
@@ -1125,12 +1100,6 @@
           );
       }
 
-      function startOfToday() {
-        const date = new Date();
-        date.setHours(0, 0, 0, 0);
-        return date;
-      }
-
       function startOfTodayMinusDays(days) {
         const date = new Date();
         date.setHours(0, 0, 0, 0);
@@ -1140,10 +1109,12 @@
 
       function render() {
         applyLanguage();
-        elements.currentDate.textContent = new Intl.DateTimeFormat(
-          language === "zh" ? "zh-Hans" : "en",
-          { weekday: "short", year: "numeric", month: "short", day: "numeric" }
-        ).format(new Date());
+        elements.currentDate.textContent = new Intl.DateTimeFormat(undefined, {
+          weekday: "short",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        }).format(new Date());
 
         renderHistory("feeding");
         renderHistory("sleeping");
@@ -1279,32 +1250,13 @@
       }
 
       function todaysMilkTotal() {
-        const today = dayKey(new Date());
         return state.feeding.reduce((total, event) => {
-          const timestamp = getTimestamp(event);
-          if (!timestamp || dayKey(new Date(timestamp)) !== today) {
-            return total;
-          }
           return total + getFeedingAmount(event);
         }, 0);
       }
 
-      // Returns the start of the current "sleep day", which resets at 8pm local time.
-      // Before 8pm → use 8pm yesterday; at or after 8pm → use 8pm today.
-      function getSleepDayStart() {
-        const now = new Date();
-        const cutoff = new Date(now);
-        cutoff.setHours(20, 0, 0, 0); // 8:00 PM today
-        if (now < cutoff) {
-          cutoff.setDate(cutoff.getDate() - 1); // roll back to 8pm yesterday
-        }
-        return cutoff;
-      }
-
       function todaysSleepTotalMs() {
         const now = new Date();
-        const todayStart = getSleepDayStart();
-        const todayStartMs = todayStart.getTime();
         const nowMs = now.getTime();
         const events = state.sleeping
           .map(normalizeSleepEvent)
@@ -1319,17 +1271,12 @@
         let total = 0;
 
         events.forEach((event) => {
-          if (event.time < todayStartMs) {
-            sleepStart = event.type === "sleep" ? todayStartMs : null;
-            return;
-          }
-
           if (event.time > nowMs) {
             return;
           }
 
           if (event.type === "sleep") {
-            sleepStart = Math.max(event.time, todayStartMs);
+            sleepStart = event.time;
             return;
           }
 
