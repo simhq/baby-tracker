@@ -301,6 +301,66 @@
         outline-offset: -3px;
       }
 
+      .backdate-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        width: calc(100% - 44px);
+        margin: -8px 22px 18px;
+      }
+
+      .backdate-panel--sleeping {
+        grid-template-columns: minmax(0, 1fr) minmax(112px, 0.42fr) auto;
+      }
+
+      .backdate-panel input,
+      .backdate-panel select {
+        min-width: 0;
+        min-height: 44px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface-strong);
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+
+      .backdate-panel input {
+        padding: 0 10px;
+      }
+
+      .backdate-panel select {
+        padding: 0 8px;
+      }
+
+      .backdate-button {
+        min-height: 44px;
+        padding: 0 13px;
+        border: 0;
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .tracker-card--feeding .backdate-button {
+        background: var(--feeding-dark);
+      }
+
+      .tracker-card--sleeping .backdate-button {
+        background: var(--sleeping-dark);
+      }
+
+      .backdate-panel input:focus-visible,
+      .backdate-panel select:focus-visible,
+      .backdate-button:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 3px;
+      }
+
       .daily-total {
         display: flex;
         align-items: baseline;
@@ -598,14 +658,32 @@
         }
 
         .log-button,
-        .feeding-action {
+        .feeding-action,
+        .backdate-panel {
           width: calc(100% - 24px);
-          min-height: 48px;
           margin: 10px 12px;
+        }
+
+        .log-button,
+        .feeding-action {
+          min-height: 48px;
         }
 
         .feeding-action {
           grid-template-columns: 46px minmax(0, 1fr) 46px;
+        }
+
+        .backdate-panel,
+        .backdate-panel--sleeping {
+          grid-template-columns: 1fr;
+          gap: 6px;
+          margin-top: -2px;
+        }
+
+        .backdate-panel input,
+        .backdate-panel select,
+        .backdate-button {
+          min-height: 40px;
         }
 
         .daily-total {
@@ -718,6 +796,13 @@
             </button>
           </div>
 
+          <div class="backdate-panel" aria-label="Backdate feeding log">
+            <input id="feedingBackdate" type="datetime-local" data-backdate-input="feeding" aria-label="Feeding log time" />
+            <button class="backdate-button" type="button" data-backdate-action="feeding" data-i18n="addPast">
+              Add past
+            </button>
+          </div>
+
           <div class="daily-total" aria-live="polite">
             <div class="daily-total-label">
               <span data-i18n="total">Total</span>
@@ -732,7 +817,7 @@
 
           <div class="history-block">
             <div class="history-header">
-              <h3 data-i18n="last3Days">Last 3 days</h3>
+              <h3 data-i18n="history">History</h3>
               <div class="history-meta">
                 <span id="feedingCount">0 logs</span>
                 <button class="clear-button" type="button" data-clear="feeding" aria-label="Clear feeding logs" data-i18n="clear">
@@ -757,6 +842,17 @@
             Start sleep
           </button>
 
+          <div class="backdate-panel backdate-panel--sleeping" aria-label="Backdate sleep log">
+            <input id="sleepingBackdate" type="datetime-local" data-backdate-input="sleeping" aria-label="Sleep log time" />
+            <select id="sleepingBackdateType" aria-label="Sleep log status">
+              <option value="sleep" data-i18n="asleep">Asleep</option>
+              <option value="awake" data-i18n="awake">Awake</option>
+            </select>
+            <button class="backdate-button" type="button" data-backdate-action="sleeping" data-i18n="addPast">
+              Add past
+            </button>
+          </div>
+
           <div class="daily-total" aria-live="polite">
             <div class="daily-total-label">
               <span data-i18n="total">Total</span>
@@ -771,7 +867,7 @@
 
           <div class="history-block">
             <div class="history-header">
-              <h3 data-i18n="last3Days">Last 3 days</h3>
+              <h3 data-i18n="history">History</h3>
               <div class="history-meta">
                 <span id="sleepingCount">0 logs</span>
                 <button class="clear-button" type="button" data-clear="sleeping" aria-label="Clear sleep logs" data-i18n="clear">
@@ -838,7 +934,8 @@
           milkMeals: "Milk and meals",
           total: "Total",
           timeSinceFeeding: "Time since last feeding",
-          last3Days: "Last 3 days",
+          history: "History",
+          addPast: "Add past",
           clear: "Clear",
           sleeping: "Sleeping",
           restSessions: "Rest sessions",
@@ -853,10 +950,13 @@
           log: "log",
           logs: "logs",
           clearEmpty: "There are no logs to clear.",
-          clearConfirm: (label) => `Clear all ${label} logs from the last 3 days?`,
+          clearConfirm: (label) => `Clear all ${label} logs?`,
           clearDone: (label) => `${capitalize(label)} logs cleared.`,
           sleepAdded: "Sleep log added.",
+          sleepBackdated: "Past sleep log added.",
           feedingAdded: (amount) => `${amount} ml added.`,
+          feedingBackdated: (amount) => `Past ${amount} ml log added.`,
+          invalidBackdate: "Choose a valid past time.",
           feedingLabel: "feeding",
           sleepLabel: "sleep",
           languageButton: "中文",
@@ -873,7 +973,8 @@
           milkMeals: "奶量记录",
           total: "总量",
           timeSinceFeeding: "距上次喂奶",
-          last3Days: "最近3天",
+          history: "记录",
+          addPast: "补记",
           clear: "清除",
           sleeping: "睡眠",
           restSessions: "休息记录",
@@ -888,10 +989,13 @@
           log: "条记录",
           logs: "条记录",
           clearEmpty: "没有可清除的记录。",
-          clearConfirm: (label) => `清除最近3天的所有${label}记录？`,
+          clearConfirm: (label) => `清除所有${label}记录？`,
           clearDone: (label) => `${label}记录已清除。`,
           sleepAdded: "睡眠记录已添加。",
+          sleepBackdated: "已补记睡眠记录。",
           feedingAdded: (amount) => `已添加 ${amount} ml。`,
+          feedingBackdated: (amount) => `已补记 ${amount} ml。`,
+          invalidBackdate: "请选择有效的过去时间。",
           feedingLabel: "喂奶",
           sleepLabel: "睡眠",
           languageButton: "English",
@@ -902,7 +1006,6 @@
 
       let language = "en";
       let feedingAmount = FEEDING_STEP;
-      let lastCleanupDay = dayKey(new Date());
 
       // State loaded from localStorage; Firebase syncs in background
       let state = loadState();
@@ -910,8 +1013,6 @@
       function mergeStateFromRemote(remoteData) {
         // Ignore own writes via version
         if (remoteData && typeof remoteData._version === "number" && remoteData._version <= localVersion) return;
-
-        const cutoff = startOfTodayMinusDays(2).getTime();
 
         if (!remoteData) {
           // Firebase is empty — seed it with local data so the other parent sees everything
@@ -930,11 +1031,9 @@
         state = {
           feeding: feedArr
             .map(normalizeFeedingEvent)
-            .filter(e => new Date(getTimestamp(e)).getTime() >= cutoff)
             .sort((a, b) => new Date(getTimestamp(b)).getTime() - new Date(getTimestamp(a)).getTime()),
           sleeping: sleepArr
             .map(normalizeSleepEvent)
-            .filter(e => new Date(getTimestamp(e)).getTime() >= cutoff)
             .sort((a, b) => new Date(getTimestamp(b)).getTime() - new Date(getTimestamp(a)).getTime()),
         };
         saveToLocal();
@@ -964,6 +1063,9 @@
         feedingCount: document.querySelector("#feedingCount"),
         sleepingCount: document.querySelector("#sleepingCount"),
         sleepingButton: document.querySelector('[data-action="sleeping"]'),
+        feedingBackdate: document.querySelector("#feedingBackdate"),
+        sleepingBackdate: document.querySelector("#sleepingBackdate"),
+        sleepingBackdateType: document.querySelector("#sleepingBackdateType"),
         toast: document.querySelector("#toast"),
       };
 
@@ -990,17 +1092,7 @@
         button.addEventListener("click", () => {
           const category = button.dataset.action;
 
-          if (category === "sleeping") {
-            state.sleeping.unshift({
-              type: nextSleepType(),
-              timestamp: new Date().toISOString(),
-            });
-          } else {
-            state[category].unshift({
-              amount: feedingAmount,
-              timestamp: new Date().toISOString(),
-            });
-          }
+          addLog(category, new Date(), category === "sleeping" ? nextSleepType() : null);
 
           cleanAndSave();
           render();
@@ -1008,6 +1100,34 @@
             category === "sleeping"
               ? t("sleepAdded")
               : t("feedingAdded")(feedingAmount),
+          );
+        });
+      });
+
+      document.querySelectorAll("[data-backdate-action]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const category = button.dataset.backdateAction;
+          const input = elements[`${category}Backdate`];
+          const timestamp = parseDatetimeLocal(input.value);
+
+          if (!timestamp || timestamp.getTime() > Date.now()) {
+            showToast(t("invalidBackdate"));
+            return;
+          }
+
+          addLog(
+            category,
+            timestamp,
+            category === "sleeping" ? elements.sleepingBackdateType.value : null,
+          );
+
+          cleanAndSave();
+          render();
+          input.value = formatDatetimeLocal(new Date());
+          showToast(
+            category === "sleeping"
+              ? t("sleepBackdated")
+              : t("feedingBackdated")(feedingAmount),
           );
         });
       });
@@ -1068,16 +1188,12 @@
       }
 
       function cleanAndSave() {
-        const cutoff = startOfTodayMinusDays(2).getTime();
-
         state.feeding = cleanCategory(
           state.feeding.map(normalizeFeedingEvent),
-          cutoff,
           getTimestamp,
         );
         state.sleeping = cleanCategory(
           state.sleeping.map(normalizeSleepEvent),
-          cutoff,
           getTimestamp,
         );
         saveToLocal();
@@ -1087,24 +1203,32 @@
         }
       }
 
-      function cleanCategory(events, cutoff, timestampGetter) {
+      function addLog(category, date, sleepType) {
+        if (category === "sleeping") {
+          state.sleeping.unshift({
+            type: sleepType === "awake" ? "awake" : "sleep",
+            timestamp: date.toISOString(),
+          });
+          return;
+        }
+
+        state.feeding.unshift({
+          amount: feedingAmount,
+          timestamp: date.toISOString(),
+        });
+      }
+
+      function cleanCategory(events, timestampGetter) {
         return events
           .filter((event) => {
             const time = new Date(timestampGetter(event)).getTime();
-            return Number.isFinite(time) && time >= cutoff;
+            return Number.isFinite(time);
           })
           .sort(
             (a, b) =>
               new Date(timestampGetter(b)).getTime() -
               new Date(timestampGetter(a)).getTime(),
           );
-      }
-
-      function startOfTodayMinusDays(days) {
-        const date = new Date();
-        date.setHours(0, 0, 0, 0);
-        date.setDate(date.getDate() - days);
-        return date;
       }
 
       function render() {
@@ -1122,6 +1246,7 @@
         renderDailyMilkTotal();
         renderDailySleepTotal();
         renderSleepState();
+        setBackdateDefaults();
         renderTimers();
       }
 
@@ -1187,34 +1312,28 @@
       }
 
       function renderTimers() {
-        pruneIfDayChanged();
         elements.feedingTimer.textContent = elapsedSince(
-          getTimestamp(state.feeding[0]),
+          latestElapsedTimestamp(state.feeding),
         );
         elements.sleepingTimer.textContent = elapsedSince(
-          getTimestamp(state.sleeping[0]),
+          latestElapsedTimestamp(state.sleeping),
         );
         renderDailySleepTotal();
       }
 
-      function pruneIfDayChanged() {
-        const today = dayKey(new Date());
+      function latestElapsedTimestamp(events) {
+        const now = Date.now();
 
-        if (today === lastCleanupDay) {
-          return;
+        for (const event of events) {
+          const timestamp = getTimestamp(event);
+          const time = new Date(timestamp).getTime();
+
+          if (Number.isFinite(time) && time <= now) {
+            return timestamp;
+          }
         }
 
-        lastCleanupDay = today;
-        cleanAndSave();
-        renderHistory("feeding");
-        renderHistory("sleeping");
-        renderDailyMilkTotal();
-        renderDailySleepTotal();
-        renderSleepState();
-      }
-
-      function dayKey(date) {
-        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+        return null;
       }
 
       function renderSleepState() {
@@ -1239,6 +1358,25 @@
           "aria-label",
           `${t("feeding")} +${feedingAmount} ml`,
         );
+      }
+
+      function setBackdateDefaults(category) {
+        const categories = category ? [category] : ["feeding", "sleeping"];
+
+        categories.forEach((name) => {
+          const input = elements[`${name}Backdate`];
+
+          if (!input) {
+            return;
+          }
+
+          const nowValue = formatDatetimeLocal(new Date());
+          input.max = nowValue;
+
+          if (!input.value) {
+            input.value = nowValue;
+          }
+        });
       }
 
       function renderDailyMilkTotal() {
@@ -1334,6 +1472,29 @@
       function getFeedingAmount(event) {
         const amount = Number(event?.amount);
         return Number.isFinite(amount) && amount > 0 ? amount : FEEDING_STEP;
+      }
+
+      function parseDatetimeLocal(value) {
+        if (!value) {
+          return null;
+        }
+
+        const date = new Date(value);
+        return Number.isFinite(date.getTime()) ? date : null;
+      }
+
+      function formatDatetimeLocal(date) {
+        return [
+          date.getFullYear(),
+          "-",
+          pad(date.getMonth() + 1),
+          "-",
+          pad(date.getDate()),
+          "T",
+          pad(date.getHours()),
+          ":",
+          pad(date.getMinutes()),
+        ].join("");
       }
 
       function elapsedSince(timestamp) {
