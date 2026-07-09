@@ -517,6 +517,11 @@
         font-size: 0.98rem;
       }
 
+      .history-entry-time {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
       .history-list li::before {
         width: 8px;
         height: 8px;
@@ -554,6 +559,36 @@
 
       .sleep-status--awake {
         color: var(--feeding-dark);
+      }
+
+      .delete-log-button {
+        min-height: 34px;
+        margin-left: auto;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--muted);
+        cursor: pointer;
+        flex: 0 0 auto;
+        font-size: 0.74rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        transition:
+          background 160ms ease,
+          color 160ms ease,
+          border-color 160ms ease;
+      }
+
+      .delete-log-button:hover {
+        border-color: #c77b67;
+        background: #fff4ee;
+        color: var(--feeding-dark);
+      }
+
+      .delete-log-button:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 3px;
       }
 
       .toast {
@@ -949,9 +984,12 @@
           noLogsPeriod: "No logs yet.",
           log: "log",
           logs: "logs",
+          deleteLog: "Delete",
           clearEmpty: "There are no logs to clear.",
           clearConfirm: (label) => `Clear all ${label} logs?`,
           clearDone: (label) => `${capitalize(label)} logs cleared.`,
+          deleteConfirm: "Delete this log?",
+          deleteDone: "Log deleted.",
           sleepAdded: "Sleep log added.",
           sleepBackdated: "Past sleep log added.",
           feedingAdded: (amount) => `${amount} ml added.`,
@@ -988,9 +1026,12 @@
           noLogsPeriod: "暂无记录。",
           log: "条记录",
           logs: "条记录",
+          deleteLog: "删除",
           clearEmpty: "没有可清除的记录。",
           clearConfirm: (label) => `清除所有${label}记录？`,
           clearDone: (label) => `${label}记录已清除。`,
+          deleteConfirm: "删除这条记录？",
+          deleteDone: "记录已删除。",
           sleepAdded: "睡眠记录已添加。",
           sleepBackdated: "已补记睡眠记录。",
           feedingAdded: (amount) => `已添加 ${amount} ml。`,
@@ -1154,6 +1195,42 @@
         });
       });
 
+      document.querySelectorAll(".history-list").forEach((list) => {
+        list.addEventListener("click", (event) => {
+          const button = event.target.closest("[data-delete-log]");
+
+          if (!button) {
+            return;
+          }
+
+          if (!window.confirm(t("deleteConfirm"))) {
+            return;
+          }
+
+          const category = button.dataset.deleteLog;
+          const key = button.dataset.logKey;
+          const startingLength = state[category].length;
+          let removed = false;
+
+          state[category] = state[category].filter((entry) => {
+            if (!removed && logKey(category, entry) === key) {
+              removed = true;
+              return false;
+            }
+
+            return true;
+          });
+
+          if (state[category].length === startingLength) {
+            return;
+          }
+
+          cleanAndSave();
+          render();
+          showToast(t("deleteDone"));
+        });
+      });
+
       // Render immediately from local data (Firebase listener will re-render when synced)
       render();
       setInterval(renderTimers, 1000);
@@ -1292,19 +1369,35 @@
         events.forEach((event) => {
           const item = document.createElement("li");
           const dateTime = document.createElement("span");
+          const deleteButton = document.createElement("button");
+
+          dateTime.className = "history-entry-time";
+          deleteButton.className = "delete-log-button";
+          deleteButton.type = "button";
+          deleteButton.dataset.deleteLog = category;
+          deleteButton.dataset.logKey = logKey(category, event);
+          deleteButton.textContent = t("deleteLog");
 
           if (category === "sleeping") {
             const label = document.createElement("strong");
             label.className = `sleep-status sleep-status--${event.type}`;
             label.textContent = event.type === "sleep" ? t("asleep") : t("awake");
             dateTime.textContent = formatTimestamp(event.timestamp);
-            item.append(label, dateTime);
+            deleteButton.setAttribute(
+              "aria-label",
+              `${t("deleteLog")} ${label.textContent} ${dateTime.textContent}`,
+            );
+            item.append(label, dateTime, deleteButton);
           } else {
             const amount = document.createElement("strong");
             amount.className = "feeding-amount";
             amount.textContent = `${getFeedingAmount(event)} ml`;
             dateTime.textContent = formatTimestamp(event.timestamp);
-            item.append(amount, dateTime);
+            deleteButton.setAttribute(
+              "aria-label",
+              `${t("deleteLog")} ${amount.textContent} ${dateTime.textContent}`,
+            );
+            item.append(amount, dateTime, deleteButton);
           }
 
           list.append(item);
@@ -1467,6 +1560,24 @@
 
       function getTimestamp(event) {
         return typeof event === "string" ? event : event?.timestamp;
+      }
+
+      function logKey(category, event) {
+        const timestamp = getTimestamp(event);
+
+        if (category === "sleeping") {
+          return [
+            category,
+            normalizeSleepEvent(event).type,
+            timestamp,
+          ].join("|");
+        }
+
+        return [
+          category,
+          getFeedingAmount(event),
+          timestamp,
+        ].join("|");
       }
 
       function getFeedingAmount(event) {
