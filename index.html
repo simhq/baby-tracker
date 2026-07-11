@@ -924,6 +924,7 @@
       const MAX_FEEDING_AMOUNT = 300;
 
       const STORAGE_KEY = "baby-tracker-events";
+      const PREFERENCES_KEY = "baby-tracker-preferences";
 
       // Firebase setup (offline-safe)
       let firebaseAvailable = false;
@@ -1045,8 +1046,9 @@
         },
       };
 
-      let language = "en";
-      let feedingAmount = FEEDING_STEP;
+      const preferences = loadPreferences();
+      let language = preferences.language;
+      let feedingAmount = preferences.feedingAmount;
 
       // State loaded from localStorage; Firebase syncs in background
       let state = loadState();
@@ -1114,6 +1116,7 @@
 
       elements.languageToggle.addEventListener("click", () => {
         language = language === "en" ? "zh" : "en";
+        savePreferences();
         render();
       });
 
@@ -1125,6 +1128,7 @@
             MIN_FEEDING_AMOUNT,
             MAX_FEEDING_AMOUNT,
           );
+          savePreferences();
           renderFeedingButton();
         });
       });
@@ -1255,6 +1259,38 @@
       function saveToLocal() {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch { /* storage full, ignore */ }
+      }
+
+      function loadPreferences() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(PREFERENCES_KEY));
+          const savedLanguage = parsed?.language === "zh" ? "zh" : "en";
+          const savedAmount = Number(parsed?.feedingAmount);
+
+          return {
+            language: savedLanguage,
+            feedingAmount: Number.isFinite(savedAmount)
+              ? clamp(savedAmount, MIN_FEEDING_AMOUNT, MAX_FEEDING_AMOUNT)
+              : FEEDING_STEP,
+          };
+        } catch {
+          return {
+            language: "en",
+            feedingAmount: FEEDING_STEP,
+          };
+        }
+      }
+
+      function savePreferences() {
+        try {
+          localStorage.setItem(
+            PREFERENCES_KEY,
+            JSON.stringify({
+              language,
+              feedingAmount,
+            }),
+          );
         } catch { /* storage full, ignore */ }
       }
 
